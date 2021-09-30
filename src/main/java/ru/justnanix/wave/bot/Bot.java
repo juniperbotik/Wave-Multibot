@@ -9,6 +9,7 @@ import com.github.steveice10.packetlib.tcp.TcpSessionFactory;
 import org.jsoup.internal.FieldsAreNonnullByDefault;
 import ru.justnanix.wave.Wave;
 import ru.justnanix.wave.bot.listener.SessionListener;
+import ru.justnanix.wave.utils.Options;
 import ru.justnanix.wave.utils.ThreadUtils;
 
 import java.net.Proxy;
@@ -16,15 +17,15 @@ import java.net.Proxy;
 public class Bot {
     private final MinecraftProtocol account;
 
-    private String host;
-    private int port;
-
     private Session session;
     private Proxy proxy;
 
     private double posX;
     private double posY;
     private double posZ;
+
+    private String host;
+    private int port;
 
     public Bot(MinecraftProtocol account, String host, int port, Proxy proxy) {
         this.account = account;
@@ -47,7 +48,7 @@ public class Bot {
         if (!isOnline())
             return;
 
-        String password = (boolean) Wave.getInstance().getValues().get("randomNicks") ? String.valueOf(Wave.getInstance().getRandom().nextInt(100000000)) : "4321qq4321";
+        String password = Options.randomNicks ? Wave.getInstance().getRandom().nextInt(10000000) + "" : "4321qq4321";
         ThreadUtils.sleep(500L);
 
         session.send(new ClientChatPacket(String.format("/register %s %1$s", password)));

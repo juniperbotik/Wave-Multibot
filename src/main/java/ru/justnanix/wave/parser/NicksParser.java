@@ -1,6 +1,7 @@
 package ru.justnanix.wave.parser;
 
 import ru.justnanix.wave.Wave;
+import ru.justnanix.wave.utils.Options;
 
 import java.io.*;
 import java.util.Collections;
@@ -12,6 +13,9 @@ public class NicksParser {
     private int number = -1;
 
     public void init() {
+        if (Options.randomNicks)
+            return;
+
         System.out.println(" * (NicksParser) -> Парсю ники...");
 
         try {

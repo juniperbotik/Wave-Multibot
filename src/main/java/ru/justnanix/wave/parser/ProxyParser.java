@@ -36,7 +36,6 @@ public class ProxyParser {
                 } catch (Exception ignored) {}
 
                 System.out.printf(" * (ProxyParser) -> Загружено %s прокси.\n", proxies.size());
-                ThreadUtils.sleep(3000L);
                 return;
             }
 
@@ -86,8 +85,6 @@ public class ProxyParser {
                 }
             }
         } catch (Exception ignored) {}
-
-        ThreadUtils.sleep(3000L);
     }
 
     public Proxy nextProxy() {

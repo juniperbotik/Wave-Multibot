@@ -27,9 +27,9 @@ public class ServerParser {
             String pattern = "\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):\\d{1,5}\\b";
             Elements elements = document.getElementsByAttributeValue("class", "server");
 
-            for (Element element : elements) {
+            for (Element element : elements)
                 servers.addAll(FindUtils.findStringsByRegex(element.text(), Pattern.compile(pattern)));
-            }
+
         } catch (Throwable ignored) {}
 
         new Thread(() -> {
@@ -53,9 +53,6 @@ public class ServerParser {
         }).start();
 
         System.out.printf(" * (ServerParser) -> Загружено %s серверов.\n\n", servers.size());
-
-        Collections.shuffle(servers, Wave.getInstance().getRandom());
-        ThreadUtils.sleep(3000L);
     }
 
     public String nextServer() {

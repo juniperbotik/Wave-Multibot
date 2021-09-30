@@ -6,6 +6,7 @@ import ru.justnanix.wave.bot.Bot;
 import ru.justnanix.wave.parser.NicksParser;
 import ru.justnanix.wave.parser.ProxyParser;
 import ru.justnanix.wave.parser.ServerParser;
+import ru.justnanix.wave.utils.Options;
 import ru.justnanix.wave.utils.ThreadUtils;
 
 import java.io.File;
@@ -30,15 +31,30 @@ public class Wave {
 
     private Map<String, Object> values;
 
-    private boolean isPoolMethod;
-
     {
-        try {
-            System.setProperty("socksProxyVersion", "4");
+        System.out.println(" -> [ Wave v1.3.2 by JustNanix ] <- \n");
+        System.setProperty("socksProxyVersion", "4");
 
+        try {
             values = new Yaml().load(new FileInputStream("config.yml"));
 
-            isPoolMethod = values.get("threads").equals("pool-method");
+            {
+                Options.message = (String) values.get("message");
+                Options.URL = (String) values.get("URL");
+
+                Options.botsCount = (int) values.get("botsCount");
+                Options.joinDelay = (int) values.get("joinDelay");
+
+                Options.randomNicks = (boolean) values.get("randomNicks");
+                Options.move = (boolean) values.get("move");
+
+                Options.doubleJoin = (boolean) values.get("doubleJoin");
+                Options.antiBotFilter = (boolean) values.get("antiBotFilter");
+
+                Options.isPoolMethod = values.get("threads").equals("pool-method");
+
+                Options.commands = (ArrayList) values.get("commands");
+            }
 
             instance = this;
         } catch (Exception e) {
@@ -55,44 +71,42 @@ public class Wave {
     }
 
     public void launch() {
-        System.out.println(" -> [ Wave v1.3.1 by JustNanix ] <- ");
-
-        System.out.println("\n * (System) Запуск Wave...");
+        System.out.println(" * (System) Запуск Wave...");
 
         proxyParser.init();
         serverParser.init((String) values.get("URL"));
         nicksParser.init();
 
-        Runnable bots = () -> {
-            while (true) {
-                Proxy proxy = proxyParser.nextProxy();
+        while (true) {
+            Proxy proxy = proxyParser.nextProxy();
 
-                String server = serverParser.nextServer();
-                String nick = nicksParser.nextNick();
+            String server = serverParser.nextServer();
+            String nick = Options.randomNicks ? random.nextInt(10000000) + "" : nicksParser.nextNick();
 
-                for (int i = 0; i < (int) values.get("botsCount"); i++) {
-                    try {
-                        String host = server.split(":")[0];
-                        int port = Integer.parseInt(server.split(":")[1]);
+            for (int i = 0; i < Options.botsCount; i++) {
+                try {
+                    String host = server.split(":")[0];
+                    int port = Integer.parseInt(server.split(":")[1]);
 
-                        if (isPoolMethod) threadPool.execute(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect());
-                        else new Thread(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect()).start();
-                    } catch (Exception ignored) {}
-                }
-
-                ThreadUtils.sleep((int) values.get("joinDelay"));
+                    if (Options.isPoolMethod) threadPool.execute(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect());
+                    else new Thread(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect()).start();
+                } catch (OutOfMemoryError ignored) {}
             }
-        };
 
-        if (values.get("threads").equals("pool-method"))
-            threadPool.execute(bots);
-
-        if (values.get("threads").equals("thread-method"))
-            new Thread(bots).start();
+            ThreadUtils.sleep(Options.joinDelay);
+        }
     }
 
     public static Wave getInstance() {
         return instance;
+    }
+
+    public Map<String, Object> getValues() {
+        return values;
+    }
+
+    public ExecutorService getThreadPool() {
+        return threadPool;
     }
 
     public ServerParser getServerParser() {
@@ -105,18 +119,6 @@ public class Wave {
 
     public NicksParser getNicksParser() {
         return nicksParser;
-    }
-
-    public Map<String, Object> getValues() {
-        return values;
-    }
-
-    public ExecutorService getThreadPool() {
-        return threadPool;
-    }
-
-    public boolean isPoolMethod() {
-        return isPoolMethod;
     }
 
     public Random getRandom() {

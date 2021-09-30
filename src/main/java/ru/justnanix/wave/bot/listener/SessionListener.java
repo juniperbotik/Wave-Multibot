@@ -16,6 +16,7 @@ import ru.justnanix.wave.Wave;
 import ru.justnanix.wave.bot.Bot;
 import ru.justnanix.wave.utils.CaptchaUtils;
 import ru.justnanix.wave.utils.CommandParser;
+import ru.justnanix.wave.utils.Options;
 import ru.justnanix.wave.utils.ThreadUtils;
 
 import java.util.ArrayList;
@@ -27,11 +28,11 @@ public class SessionListener extends SessionAdapter {
     public SessionListener(Bot client) {
         this.client = client;
 
-        if (!((boolean) Wave.getInstance().getValues().get("move")))
+        if (!Options.move)
             return;
 
         Runnable mover = () -> {
-            ThreadUtils.sleep(10000L);
+            ThreadUtils.sleep(8000L);
 
             double posX = -0.2;
             double posZ = -0.2;
@@ -56,7 +57,7 @@ public class SessionListener extends SessionAdapter {
             }
         };
 
-        if (Wave.getInstance().isPoolMethod()) new Thread(mover).start();
+        if (Options.isPoolMethod) new Thread(mover).start();
         else Wave.getInstance().getThreadPool().execute(mover);
     }
 
@@ -64,8 +65,8 @@ public class SessionListener extends SessionAdapter {
     public void disconnected(DisconnectedEvent event) {
         disconnects++;
 
-        if (!event.getReason().equals("bf") && disconnects < 2 && (boolean) Wave.getInstance().getValues().get("doubleJoin")) {
-            ThreadUtils.sleep(6000L);
+        if (!event.getReason().equals("bf") && disconnects < 2 && Options.doubleJoin) {
+            ThreadUtils.sleep(5000L);
             client.connect();
         }
     }
@@ -78,22 +79,22 @@ public class SessionListener extends SessionAdapter {
 
             Runnable messageSender = () -> {
                 while (client.isOnline())
-                    for (Object obj : (ArrayList) Wave.getInstance().getValues().get("commands")) {
+                    for (Object obj : Options.commands) {
                         CommandParser.parseCommand((String) obj, client);
                     }
             };
 
-            if (Wave.getInstance().isPoolMethod()) Wave.getInstance().getThreadPool().execute(messageSender);
+            if (Options.isPoolMethod) Wave.getInstance().getThreadPool().execute(messageSender);
             else new Thread(messageSender).start();
 
         }  else if (receiveEvent.getPacket() instanceof ServerChatPacket) {
             ServerChatPacket packet = receiveEvent.getPacket();
             String message = packet.getMessage().getFullText();
 
-            if ((boolean) Wave.getInstance().getValues().get("antiBotFilter") && (message.contains("BotFilter") || message.contains("Ожидайте завершения проверки..."))) {
+            if (Options.antiBotFilter && message.contains("Ожидайте завершения проверки...")) {
                 String ip = client.getSession().getHost() + ":" + client.getSession().getPort();
 
-                System.out.println(" * (AntiBotFilter) Удаляю сервер " + ip);
+                System.out.println("\n * (AntiBotFilter) Удаляю сервер " + ip + "\n");
 
                 Wave.getInstance().getServerParser().getServers().remove(ip);
                 client.getSession().disconnect("bf");
