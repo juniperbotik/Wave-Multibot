@@ -14,12 +14,9 @@ import com.github.steveice10.packetlib.event.session.SessionAdapter;
 import org.apache.commons.lang3.StringUtils;
 import ru.justnanix.wave.Wave;
 import ru.justnanix.wave.bot.Bot;
-import ru.justnanix.wave.utils.CaptchaUtils;
-import ru.justnanix.wave.utils.CommandParser;
-import ru.justnanix.wave.utils.Options;
-import ru.justnanix.wave.utils.ThreadUtils;
+import ru.justnanix.wave.utils.*;
 
-import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class SessionListener extends SessionAdapter {
     private final Bot client;
@@ -31,9 +28,7 @@ public class SessionListener extends SessionAdapter {
         if (!Options.move)
             return;
 
-        Runnable mover = () -> {
-            ThreadUtils.sleep(8000L);
-
+        new Thread(() -> {
             double posX = -0.2;
             double posZ = -0.2;
 
@@ -55,15 +50,15 @@ public class SessionListener extends SessionAdapter {
                 posX = -posX;
                 posZ = -posZ;
             }
-        };
-
-        if (Options.isPoolMethod) new Thread(mover).start();
-        else Wave.getInstance().getThreadPool().execute(mover);
+        }).start();
     }
 
     @Override
     public void disconnected(DisconnectedEvent event) {
-        disconnects++;
+        Statistics.botList.remove(client);
+
+        if (Options.doubleJoin)
+            disconnects++;
 
         if (!event.getReason().equals("bf") && disconnects < 2 && Options.doubleJoin) {
             ThreadUtils.sleep(5000L);
@@ -74,19 +69,21 @@ public class SessionListener extends SessionAdapter {
     @Override
     public void packetReceived(PacketReceivedEvent receiveEvent) {
         if (receiveEvent.getPacket() instanceof ServerJoinGamePacket) {
-            System.out.println(" * (" + client.getSession().getHost() + ":" + client.getSession().getPort() + ") (" + client.getGameProfile().getName() + ") Подключился.");
-            client.register();
+            if (Options.infoFormat < 1)
+                System.out.println(" * (" + client.getSession().getHost() + ":" + client.getSession().getPort() + ") (" + client.getGameProfile().getName() + ") Подключился.");
 
-            Runnable messageSender = () -> {
-                while (client.isOnline())
+            Statistics.botList.add(client);
+
+            new Thread(client::register).start();
+            new Thread(() -> {
+                while (client.isOnline()) {
                     for (Object obj : Options.commands) {
-                        CommandParser.parseCommand((String) obj, client);
+                        try {
+                            CommandParser.parseCommand((String) obj, client);
+                        } catch (Exception ignored) {}
                     }
-            };
-
-            if (Options.isPoolMethod) Wave.getInstance().getThreadPool().execute(messageSender);
-            else new Thread(messageSender).start();
-
+                }
+            }).start();
         }  else if (receiveEvent.getPacket() instanceof ServerChatPacket) {
             ServerChatPacket packet = receiveEvent.getPacket();
             String message = packet.getMessage().getFullText();
@@ -94,7 +91,8 @@ public class SessionListener extends SessionAdapter {
             if (Options.antiBotFilter && message.contains("Ожидайте завершения проверки...")) {
                 String ip = client.getSession().getHost() + ":" + client.getSession().getPort();
 
-                System.out.println("\n * (AntiBotFilter) Удаляю сервер " + ip + "\n");
+                if (Options.infoFormat < 1)
+                    System.out.println("\n * (AntiBotFilter) Удаляю сервер " + ip + "\n");
 
                 Wave.getInstance().getServerParser().getServers().remove(ip);
                 client.getSession().disconnect("bf");
@@ -102,7 +100,7 @@ public class SessionListener extends SessionAdapter {
                 return;
             }
 
-            if (!StringUtils.containsIgnoreCase(message, "chat.type"))
+            if (!StringUtils.containsIgnoreCase(message, "chat.type") && Options.infoFormat < 1)
                 System.out.println(" * (" + client.getSession().getHost() + ":" + client.getSession().getPort() + ") (" + client.getGameProfile().getName() + ") Чат: " + message);
 
             CaptchaUtils.solveCaptcha(message, client);
@@ -115,8 +113,9 @@ public class SessionListener extends SessionAdapter {
 
             client.getSession().send(new ClientTeleportConfirmPacket(packet.getTeleportId()));
         } else if (receiveEvent.getPacket() instanceof ServerPlayerHealthPacket) {
-            if (((ServerPlayerHealthPacket) receiveEvent.getPacket()).getHealth() < 1)
+            if (((ServerPlayerHealthPacket) receiveEvent.getPacket()).getHealth() < 1) {
                 client.getSession().send(new ClientRequestPacket(ClientRequest.RESPAWN));
+            }
         }
     }
 }

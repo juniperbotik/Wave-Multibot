@@ -16,6 +16,8 @@ public class CaptchaUtils {
             if (StringUtils.containsIgnoreCase(message, "clickEvent")) {
                 client.getSession().send(new ClientChatPacket(line.split(" ")[0] + " /verify " + line.split(" ")[2]));
                 client.register();
+
+                Statistics.solvedCaptcha.getAndIncrement();
             }
         } catch (Exception ignored) {}
 
@@ -29,6 +31,8 @@ public class CaptchaUtils {
 
             client.getSession().send(new ClientChatPacket("/captcha " + line.split(" ")[1]));
             client.register();
+
+            Statistics.solvedCaptcha.getAndIncrement();
         } catch (Exception ignored) {}
 
         // Type **** | Captcha
@@ -39,6 +43,8 @@ public class CaptchaUtils {
             if (StringUtils.containsIgnoreCase(message, "prove")) {
                 client.getSession().send(new ClientChatPacket(line.split(" ")[1]));
                 client.register();
+
+                Statistics.solvedCaptcha.getAndIncrement();
             }
         } catch (Exception ignored) {}
 
@@ -49,6 +55,8 @@ public class CaptchaUtils {
 
             client.getSession().send(new ClientChatPacket(line.split(" ")[2]));
             client.register();
+
+            Statistics.solvedCaptcha.getAndIncrement();
         } catch (Exception ignored) {}
 
         // clique na cor ******* | Captcha
@@ -58,6 +66,8 @@ public class CaptchaUtils {
 
             client.getSession().send(new ClientChatPacket("/color " + line.split(" ")[3]));
             client.register();
+
+            Statistics.solvedCaptcha.getAndIncrement();
         } catch (Exception ignored) {}
     }
 }

@@ -7,21 +7,20 @@ import ru.justnanix.wave.parser.NicksParser;
 import ru.justnanix.wave.parser.ProxyParser;
 import ru.justnanix.wave.parser.ServerParser;
 import ru.justnanix.wave.utils.Options;
+import ru.justnanix.wave.utils.Statistics;
+import ru.justnanix.wave.utils.StringGenerator;
 import ru.justnanix.wave.utils.ThreadUtils;
 
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
 import java.net.Proxy;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Wave {
     private static Wave instance;
-
-    private final ExecutorService threadPool = Executors.newCachedThreadPool();
 
     private final Random random = new Random(System.currentTimeMillis());
 
@@ -29,29 +28,47 @@ public class Wave {
     private final ProxyParser proxyParser = new ProxyParser();
     private final NicksParser nicksParser = new NicksParser();
 
-    private Map<String, Object> values;
-
     {
-        System.out.println(" -> [ Wave v1.3.2 by JustNanix ] <- \n");
+        System.out.println(" -> [ Wave v1.4 by JustNanix ] <- \n");
         System.setProperty("socksProxyVersion", "4");
 
+        if (System.console() == null) {
+            try {
+                new ProcessBuilder("cmd", "/c", "msg", System.getenv("username"), "миша нахуй ты меня запустил не через батнек... мишааа чо ты такой тупой та").start();
+            } catch (Exception ignored) {}
+
+            System.exit(0);
+        }
+
         try {
-            values = new Yaml().load(new FileInputStream("config.yml"));
+            new ProcessBuilder("cmd", "/c", "title Wave v1.4").inheritIO().start().waitFor();
+        } catch (Exception ignored) {}
+
+        try {
+            Map<String, Object> values = new Yaml().load(new FileInputStream("config.yml"));
 
             {
-                Options.message = (String) values.get("message");
-                Options.URL = (String) values.get("URL");
+                Options.infoFormat = (int) values.get("infoFormat");
 
                 Options.botsCount = (int) values.get("botsCount");
                 Options.joinDelay = (int) values.get("joinDelay");
 
                 Options.randomNicks = (boolean) values.get("randomNicks");
-                Options.move = (boolean) values.get("move");
+                Options.randomNicksLength = (int) values.get("randomNicksLength");
+
+                Options.randomPasswords = (boolean) values.get("randomPasswords");
+                Options.randomPasswordsLength = (int) values.get("randomPasswordsLength");
 
                 Options.doubleJoin = (boolean) values.get("doubleJoin");
                 Options.antiBotFilter = (boolean) values.get("antiBotFilter");
 
-                Options.isPoolMethod = values.get("threads").equals("pool-method");
+                Options.testMode = (boolean) values.get("testMode");
+                Options.testModeIp = (String) values.get("testModeIp");
+
+                Options.autoRestart = (boolean) values.get("autoRestart");
+                Options.autoRestartDelay = (int) values.get("autoRestartDelay");
+
+                Options.move = (boolean) values.get("move");
 
                 Options.commands = (ArrayList) values.get("commands");
             }
@@ -74,22 +91,48 @@ public class Wave {
         System.out.println(" * (System) Запуск Wave...");
 
         proxyParser.init();
-        serverParser.init((String) values.get("URL"));
+        serverParser.init();
         nicksParser.init();
+
+        if (Options.autoRestart) {
+            new Thread(() -> {
+                try {
+                    ThreadUtils.sleep(TimeUnit.MINUTES.toMillis(Options.autoRestartDelay));
+
+                    String path = Main.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+                    String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8).substring(1).replace("/", "\\");
+
+                    new ProcessBuilder("cmd", "/c", "start", "java", "-Xmx2G", "-server", "-jar", "\"" + decodedPath + "\"").start();
+
+                    System.exit(0);
+                } catch (Exception ignored) {}
+            }).start();
+        }
+
+        if (Options.infoFormat > 0) {
+            new Thread(() -> {
+                while (true) {
+                    ThreadUtils.sleep(2500L);
+
+                    System.out.printf(" * (Info) Ботов онлайн: %s | Решено капч: %s | Сообщений отправлено: %s %n", Statistics.botList.size(), Statistics.solvedCaptcha.get(), Statistics.messagesSent.get());
+                }
+            }).start();
+        }
 
         while (true) {
             Proxy proxy = proxyParser.nextProxy();
 
-            String server = serverParser.nextServer();
-            String nick = Options.randomNicks ? random.nextInt(10000000) + "" : nicksParser.nextNick();
+            String server = Options.testMode ? Options.testModeIp : serverParser.nextServer();
+            String nick = Options.randomNicks ? StringGenerator.generateStringInt(Options.randomNicksLength) : nicksParser.nextNick();
 
             for (int i = 0; i < Options.botsCount; i++) {
                 try {
                     String host = server.split(":")[0];
                     int port = Integer.parseInt(server.split(":")[1]);
 
-                    if (Options.isPoolMethod) threadPool.execute(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect());
-                    else new Thread(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect()).start();
+                    new Thread(
+                            () -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect()
+                    ).start();
                 } catch (OutOfMemoryError ignored) {}
             }
 
@@ -99,14 +142,6 @@ public class Wave {
 
     public static Wave getInstance() {
         return instance;
-    }
-
-    public Map<String, Object> getValues() {
-        return values;
-    }
-
-    public ExecutorService getThreadPool() {
-        return threadPool;
     }
 
     public ServerParser getServerParser() {
