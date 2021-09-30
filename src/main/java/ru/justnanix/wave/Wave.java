@@ -21,6 +21,7 @@ public class Wave {
     private static Wave instance;
 
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
+
     private final Random random = new Random(System.currentTimeMillis());
 
     private final ServerParser serverParser = new ServerParser();
@@ -29,11 +30,16 @@ public class Wave {
 
     private Map<String, Object> values;
 
+    private boolean isPoolMethod;
+
     {
         try {
             System.setProperty("socksProxyVersion", "4");
 
             values = new Yaml().load(new FileInputStream("config.yml"));
+
+            isPoolMethod = values.get("threads").equals("pool-method");
+
             instance = this;
         } catch (Exception e) {
             System.out.println(" * (System) Возникла ошибка при загрузке config.yml!");
@@ -44,10 +50,12 @@ public class Wave {
             ThreadUtils.sleep(10000L);
             System.exit(0);
         }
+
+        System.err.close();
     }
 
     public void launch() {
-        System.out.println(" -> [ Wave v1.3 by JustNanix ] <- ");
+        System.out.println(" -> [ Wave v1.3.1 by JustNanix ] <- ");
 
         System.out.println("\n * (System) Запуск Wave...");
 
@@ -67,10 +75,8 @@ public class Wave {
                         String host = server.split(":")[0];
                         int port = Integer.parseInt(server.split(":")[1]);
 
-                        if (values.get("threads").equals("pool-method"))
-                            threadPool.execute(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect());
-                        if (values.get("threads").equals("thread-method"))
-                            new Thread(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect()).start();
+                        if (isPoolMethod) threadPool.execute(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect());
+                        else new Thread(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect()).start();
                     } catch (Exception ignored) {}
                 }
 
@@ -85,6 +91,22 @@ public class Wave {
             new Thread(bots).start();
     }
 
+    public static Wave getInstance() {
+        return instance;
+    }
+
+    public ServerParser getServerParser() {
+        return serverParser;
+    }
+
+    public ProxyParser getProxyParser() {
+        return proxyParser;
+    }
+
+    public NicksParser getNicksParser() {
+        return nicksParser;
+    }
+
     public Map<String, Object> getValues() {
         return values;
     }
@@ -93,8 +115,8 @@ public class Wave {
         return threadPool;
     }
 
-    public static Wave getInstance() {
-        return instance;
+    public boolean isPoolMethod() {
+        return isPoolMethod;
     }
 
     public Random getRandom() {

@@ -44,10 +44,13 @@ public class Bot {
     }
 
     public void register() {
+        if (!isOnline())
+            return;
+
         String password = (boolean) Wave.getInstance().getValues().get("randomNicks") ? String.valueOf(Wave.getInstance().getRandom().nextInt(100000000)) : "4321qq4321";
         ThreadUtils.sleep(500L);
 
-        session.send(new ClientChatPacket(String.format("/register %s %s", password, password)));
+        session.send(new ClientChatPacket(String.format("/register %s %1$s", password)));
         session.send(new ClientChatPacket(String.format("/login %s", password)));
     }
 

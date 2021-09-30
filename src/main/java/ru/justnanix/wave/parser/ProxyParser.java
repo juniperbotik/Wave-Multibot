@@ -98,4 +98,8 @@ public class ProxyParser {
 
         return proxies.get(number);
     }
+
+    public List<Proxy> getProxies() {
+        return proxies;
+    }
 }

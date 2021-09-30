@@ -53,4 +53,8 @@ public class NicksParser {
 
         return nicks.get(number);
     }
+
+    public List<String> getNicks() {
+        return nicks;
+    }
 }

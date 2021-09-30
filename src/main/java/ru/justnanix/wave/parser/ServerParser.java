@@ -66,4 +66,8 @@ public class ServerParser {
 
         return servers.get(number);
     }
+
+    public List<String> getServers() {
+        return servers;
+    }
 }
