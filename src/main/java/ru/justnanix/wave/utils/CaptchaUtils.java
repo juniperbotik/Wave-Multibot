@@ -19,6 +19,10 @@ public class CaptchaUtils {
         try {
             String line = FindUtils.findStringByRegex(message, Pattern.compile("/captcha .*")).replace("»", " ");
 
+            if (line.contains(":")) {
+                client.getSession().send(new ClientChatPacket("/captcha " + line.split(":")[1].trim()));
+            }
+
             client.getSession().send(new ClientChatPacket("/captcha " + line.split(" ")[1]));
             client.register();
         } catch (Exception ignored) {}

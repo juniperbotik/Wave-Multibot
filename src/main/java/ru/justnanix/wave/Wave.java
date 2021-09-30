@@ -1,138 +1,96 @@
 package ru.justnanix.wave;
 
 import com.github.steveice10.mc.protocol.MinecraftProtocol;
+import org.yaml.snakeyaml.Yaml;
 import ru.justnanix.wave.bot.Bot;
 import ru.justnanix.wave.parser.NicksParser;
 import ru.justnanix.wave.parser.ProxyParser;
 import ru.justnanix.wave.parser.ServerParser;
 import ru.justnanix.wave.utils.ThreadUtils;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.net.Proxy;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Random;
-import java.util.Scanner;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Wave {
     private static Wave instance;
 
-    private final ServerParser serverParser;
-    private final ProxyParser proxyParser;
-    private final NicksParser nicksParser;
-    private final Random random;
+    private final ExecutorService threadPool = Executors.newCachedThreadPool();
+    private final Random random = new Random(System.currentTimeMillis());
 
-    private boolean randomNicks = false;
-    private int message_delay = 3500;
+    private final ServerParser serverParser = new ServerParser();
+    private final ProxyParser proxyParser = new ProxyParser();
+    private final NicksParser nicksParser = new NicksParser();
 
-    private String message;
-    private String mode;
+    private Map<String, Object> values;
 
     {
-        System.setProperty("socksProxyVersion", "4");
+        try {
+            System.setProperty("socksProxyVersion", "4");
 
-        serverParser = new ServerParser();
-        proxyParser = new ProxyParser();
-        nicksParser = new NicksParser();
+            values = new Yaml().load(new FileInputStream("config.yml"));
+            instance = this;
+        } catch (Exception e) {
+            System.out.println(" * (System) Возникла ошибка при загрузке config.yml!");
 
-        random = new Random(System.currentTimeMillis());
-        instance = this;
+            ThreadUtils.sleep(2000L);
+            e.printStackTrace();
+
+            ThreadUtils.sleep(10000L);
+            System.exit(0);
+        }
     }
 
     public void launch() {
-        System.out.println(new String(Base64.getDecoder().decode(Base64.getDecoder().decode("SUMwK0lGc2dWMkYyWlNCMk1TNHlJR0o1SUVwMWMzUk9ZVzVwZUNCZElEd3RJQT09"))) + "\n");
+        System.out.println(" -> [ Wave v1.3 by JustNanix ] <- ");
 
-        try (Scanner sc = new Scanner(System.in, "IBM866")) {
-            System.out.println(" * (System) Введите режим: ");
+        System.out.println("\n * (System) Запуск Wave...");
 
-            System.out.println(" * (System) 1. Обычный ");
-            System.out.println(" * (System) 2. Расширенный");
-            System.out.print(" > ");
+        proxyParser.init();
+        serverParser.init((String) values.get("URL"));
+        nicksParser.init();
 
-            mode = sc.nextLine();
+        Runnable bots = () -> {
+            while (true) {
+                Proxy proxy = proxyParser.nextProxy();
 
-            if (mode.equals("1") || mode.equalsIgnoreCase("Обычный")) {
-                System.out.println("\n * (System) Введите сообщение: ");
-                System.out.print(" > ");
+                String server = serverParser.nextServer();
+                String nick = nicksParser.nextNick();
 
-                message = sc.nextLine();
+                for (int i = 0; i < (int) values.get("botsCount"); i++) {
+                    try {
+                        String host = server.split(":")[0];
+                        int port = Integer.parseInt(server.split(":")[1]);
 
-                System.out.println("\n * (System) Запуск Wave...");
+                        if (values.get("threads").equals("pool-method"))
+                            threadPool.execute(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect());
+                        if (values.get("threads").equals("thread-method"))
+                            new Thread(() -> new Bot(new MinecraftProtocol(nick), host, port, proxy).connect()).start();
+                    } catch (Exception ignored) {}
+                }
 
-                proxyParser.init();
-                serverParser.init("https://monitoringminecraft.ru/novie-servera");
-                nicksParser.init();
-
-                new Thread(() -> {
-                    while (true) {
-                        Proxy proxy = proxyParser.nextProxy();
-
-                        String server = serverParser.nextServer();
-                        String nick = nicksParser.nextNick();
-
-                        for (int i = 0; i < 3; i++) {
-                            try {
-                                new Thread(() ->
-                                        new Bot(new MinecraftProtocol(nick), proxy).connect(server.split(":")[0], Integer.parseInt(server.split(":")[1]))
-                                ).start();
-                            } catch (Exception ignored) {}
-                        }
-
-                        ThreadUtils.sleep(150L);
-                    }
-                }).start();
+                ThreadUtils.sleep((int) values.get("joinDelay"));
             }
+        };
 
-            if (mode.equals("2") || mode.equalsIgnoreCase("Расширенный")) {
-                System.out.println("\n * (System) Введите ссылку для парсинга серверов (дефолт https://monitoringminecraft.ru/novie-servera)");
-                System.out.print(" > ");
-                String URL = sc.nextLine();
+        if (values.get("threads").equals("pool-method"))
+            threadPool.execute(bots);
 
-                System.out.println(" * (System) Введите сообщение");
-                System.out.print(" > ");
-                message = sc.nextLine();
+        if (values.get("threads").equals("thread-method"))
+            new Thread(bots).start();
+    }
 
-                System.out.println(" * (System) Введите задержку отправки сообщения (мс)");
-                System.out.print(" > ");
-                message_delay = Integer.parseInt(sc.nextLine());
+    public Map<String, Object> getValues() {
+        return values;
+    }
 
-                System.out.println(" * (System) Введите задержку (дефолт 150)");
-                System.out.print(" > ");
-                int delay = Integer.parseInt(sc.nextLine());
-
-                System.out.println(" * (System) Введите кол-во ботов на один сервер (дефолт 3)");
-                System.out.print(" > ");
-                int bots = Integer.parseInt(sc.nextLine());
-
-                System.out.println(" * (System) Использовать ли рандомные ники и пароли? (д/н)");
-                System.out.print(" > ");
-                randomNicks = sc.nextLine().equalsIgnoreCase("д");
-
-                System.out.println("\n * (System) Запуск Wave...");
-
-                proxyParser.init();
-                serverParser.init(URL);
-
-                if (!randomNicks)
-                    nicksParser.init();
-
-                new Thread(() -> {
-                    while (true) {
-                        Proxy proxy = proxyParser.nextProxy();
-                        String server = serverParser.nextServer();
-
-                        String nick = randomNicks ? String.valueOf(random.nextInt(10000000)) : nicksParser.nextNick();
-
-                        for (int i = 0; i < bots; i++) {
-                            new Thread(() ->
-                                    new Bot(new MinecraftProtocol(nick), proxy).connect(server.split(":")[0], Integer.parseInt(server.split(":")[1]))
-                            ).start();
-                        }
-
-                        ThreadUtils.sleep(delay);
-                    }
-                }).start();
-            }
-        }
+    public ExecutorService getThreadPool() {
+        return threadPool;
     }
 
     public static Wave getInstance() {
@@ -141,17 +99,5 @@ public class Wave {
 
     public Random getRandom() {
         return random;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public int getMessageDelay() {
-        return message_delay;
-    }
-
-    public boolean isRandomNicks() {
-        return randomNicks;
     }
 }

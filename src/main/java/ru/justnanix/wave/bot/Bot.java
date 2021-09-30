@@ -16,6 +16,9 @@ import java.net.Proxy;
 public class Bot {
     private final MinecraftProtocol account;
 
+    private String host;
+    private int port;
+
     private Session session;
     private Proxy proxy;
 
@@ -23,27 +26,29 @@ public class Bot {
     private double posY;
     private double posZ;
 
-    public Bot(MinecraftProtocol account, Proxy proxy) {
-        this.proxy = proxy;
+    public Bot(MinecraftProtocol account, String host, int port, Proxy proxy) {
         this.account = account;
+        this.proxy = proxy;
+
+        this.host = host;
+        this.port = port;
     }
 
-    public void connect(String host, int port) {
+    public void connect() {
         Client client = new Client(host, port, account, new TcpSessionFactory(proxy));
 
         client.getSession().addListener(new SessionListener(this));
-        client.getSession().setConnectTimeout(6000);
         client.getSession().connect();
 
         this.session = client.getSession();
     }
 
     public void register() {
-        String password = Wave.getInstance().isRandomNicks() ? String.valueOf(Wave.getInstance().getRandom().nextInt(100000000)) : "4321qq4321";
+        String password = (boolean) Wave.getInstance().getValues().get("randomNicks") ? String.valueOf(Wave.getInstance().getRandom().nextInt(100000000)) : "4321qq4321";
         ThreadUtils.sleep(500L);
 
         session.send(new ClientChatPacket(String.format("/register %s %s", password, password)));
-        session.send(new ClientChatPacket(String.format("/login %s %s", password, password)));
+        session.send(new ClientChatPacket(String.format("/login %s", password)));
     }
 
     public boolean isOnline() {
