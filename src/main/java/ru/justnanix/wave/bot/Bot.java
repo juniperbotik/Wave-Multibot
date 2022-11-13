@@ -48,7 +48,7 @@ public class Bot {
         if (!isOnline())
             return;
 
-        String password = Options.randomPasswords ? StringGenerator.generateStringInt(Options.randomPasswordsLength) : "4321qq4321";
+        String password = Options.randomPasswords ? StringGenerator.generateStringInt(Options.randomPasswordsLength) : "2967og9587";
         ThreadUtils.sleep(1000L);
 
         session.send(new ClientChatPacket(String.format("/register %s %1$s", password)));
